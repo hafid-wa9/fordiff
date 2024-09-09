@@ -21,6 +21,12 @@
   color: var(--e-global-color-primary);
 }
 
+.checkout_coupon{
+	display: grid !important;
+	margin-bottom: 0;
+	max-width: 622px;
+}
+
 .checkout_referral {
   margin-bottom: 2.6180340252em;
   display: grid;
@@ -50,6 +56,23 @@
 .checkout_referral {
     grid-template-columns: 53.6231884058% auto;
   }
+
+#checkout_referral_table, #checkout_coupon_table{
+	margin-bottom:0;
+	display:flex !important;
+}
+#referral_code_table,
+#coupon_code_table{
+	width: calc(70% - 10px);
+}
+#apply_referral_table{
+	margin-left:5px;
+	padding: 15px 34px;
+}
+#apply_coupon_table{
+	margin-left:5px;
+	padding:15px 20px;
+}
 
 .wc_payment_method.payment_method_qr_pay_gateway, c{
 	border:none !important;
@@ -86,19 +109,4 @@ li.payment_method_qr_pay_gateway label{
 }
 #payment .payment_methods li .payment_box{
 	font-size:1.1em;
-}
-.label-scrolling {
-    display: none;
-}
-
-.cart {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: left; 
-}
-.single_add_to_cart_button {
-	min-width: 150px; 
-}
-.woocommerce-checkout .woocommerce-info {
-    display: none;
 }
