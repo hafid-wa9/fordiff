@@ -1,0 +1,104 @@
+.coupon{
+	display:block !important;
+}
+
+.referral_code{
+	display: contents !important ;
+}
+
+.referral_code .input-text{
+	margin-top:10px !important;
+}
+
+.woocommerce-form-referral-toggle .woocommerce-info {
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  color: var(--e-global-color-text);
+}
+
+.woocommerce-form-referral-toggle .woocommerce-info a {
+  color: var(--e-global-color-primary);
+}
+
+.checkout_referral {
+  margin-bottom: 2.6180340252em;
+  display: grid;
+  max-width: 622px;
+}
+.checkout_referral p:first-child {
+  grid-column: 1/span 2;
+}
+.checkout_referral .form-row-first {
+  margin-right: 0;
+  width: 100%;
+}
+.checkout_referral .form-row-last {
+  width: unset;
+  float: left;
+}
+.checkout_referral .input-text {
+  width: 100%;
+}
+.checkout_referral .input-text:focus {
+  border-color: var(--e-global-color-accent);
+}
+.checkout_referral button[type=submit] {
+  margin-left: 20px;
+}
+
+.checkout_referral {
+    grid-template-columns: 53.6231884058% auto;
+  }
+
+.wc_payment_method.payment_method_qr_pay_gateway, c{
+	border:none !important;
+	background-color: #fff !important;
+	color:black !important;
+	text-shadow:none !important;
+	-webkit-filter: none !important;
+}
+
+#payment .payment_methods > .wc_payment_method > label{
+	font-size: 1rem !important;
+	font-size: 16px !important;
+	font-weight:font-weight: var(--e-global-typography-primary-font-weight) !important;
+	color: var(--e-global-color-secondary) !important;
+	text-shadow:none !important;
+}
+
+.payment_method_qr_pay_gateway{
+	background-color:white !important;
+	color: var(--e-global-color-secondary) !important;animation-duration
+}
+.custom-payment-image-container h3{
+	color: var(--e-global-color-secondary) !important;
+}
+.custom-payment-image-container a:hover{
+	color:white !important;
+}
+li.payment_method_qr_pay_gateway label{
+	color: var(--e-global-color-secondary) !important;
+	font-weight: var(--e-global-typography-primary-font-weight) !important;
+	text-shadow:none !important;
+	font-size: 1em !important;
+	font-size: 16px !important;
+}
+#payment .payment_methods li .payment_box{
+	font-size:1.1em;
+}
+.label-scrolling {
+    display: none;
+}
+
+.cart {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: left; 
+}
+.single_add_to_cart_button {
+	min-width: 150px; 
+}
+.woocommerce-checkout .woocommerce-info {
+    display: none;
+}
