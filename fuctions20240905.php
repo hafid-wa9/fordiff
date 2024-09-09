@@ -7,11 +7,30 @@ add_filter( 'wt_import_csv_parser_keep_bom', '__return_false' );
 add_action( 'template_redirect', 'define_default_payment_gateway' );
 function define_default_payment_gateway(){
     if( is_checkout() && ! is_wc_endpoint_url() ) {
-        // HERE define the default payment gateway ID
         $default_payment_id = 'qr_pay_gateway';
 
         WC()->session->set( 'chosen_payment_method', $default_payment_id );
     }
+}
+
+add_filter('woocommerce_coupon_code', 'preserve_coupon_case_on_save',999);
+function preserve_coupon_case_on_save($code) {
+    return $code;
+}
+
+add_filter('woocommerce_coupon_code', 'display_coupon_case_in_admin');
+function display_coupon_case_in_admin($code) {
+    global $wpdb;
+
+    $coupon_id = $wpdb->get_var($wpdb->prepare(
+        "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'shop_coupon' AND post_title = %s LIMIT 1;",
+        $code
+    ));
+
+    if ($coupon_id) {
+        return get_the_title($coupon_id);
+    }
+    return $code;
 }
 
 add_action('woocommerce_product_after_variable_attributes', 'add_member_price_field_to_variations', 10, 3);
@@ -82,22 +101,43 @@ function validate_coupon_code_field($valid, $coupon) {
 
 add_action('woocommerce_cart_updated', 'process_referral_code');
 function process_referral_code() {
-    if (isset($_POST['apply_referral']) && !empty($_POST['referral_code'])) {
+    if ((isset($_POST['apply_referral']) || isset($_POST['apply_referral_table'])) && (!empty($_POST['referral_code']) || !empty($_POST['referral_code_table']))) {
         if (WC()->session->get('referral_code_processed')) {
             return;
         }
 
-        $referral_code = sanitize_text_field($_POST['referral_code']);
-        $coupon = new WC_Coupon($referral_code);
+        global $wpdb;
+        $referral_code = '';
 
-        if ($coupon->get_id()) {
-            $is_referral_code = get_post_meta($coupon->get_id(), '_is_referral_code', true);
+		if ( ! empty( $_POST['referral_code'] ) ) {
+    		$referral_code = sanitize_text_field( $_POST['referral_code'] );
+		} elseif ( ! empty( $_POST['referral_code_table'] ) ) {
+    		$referral_code = sanitize_text_field( $_POST['referral_code_table'] );
+		}
 
-            if ($is_referral_code === 'yes') {
+        // Query to check if the referral code exists with exact case
+        $query = $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}posts 
+            WHERE post_type = 'shop_coupon' 
+            AND post_status = 'publish' 
+            AND post_title = %s 
+            AND EXISTS (
+                SELECT * FROM {$wpdb->prefix}postmeta 
+                WHERE post_id = {$wpdb->prefix}posts.ID 
+                AND meta_key = '_is_referral_code'
+                AND meta_value = 'yes'
+            )",
+            $referral_code
+        );
+
+        $result = $wpdb->get_row($query);
+
+        if ($result) {
+            if ($result->post_title === $referral_code) {
                 WC()->session->set('referral_code', $referral_code);
                 wc_add_notice(__('Referral code applied successfully!', 'woocommerce'), 'success');
             } else {
-                wc_add_notice(__('This is not a valid referral code.', 'woocommerce'), 'error');
+                wc_add_notice(__('Invalid referral code. ', 'woocommerce'), 'error');
             }
         } else {
             wc_add_notice(__('Invalid referral code.', 'woocommerce'), 'error');
@@ -109,12 +149,12 @@ function process_referral_code() {
 
 function add_referral_code_toggle_and_form() {
     ?>
-    <div class="woocommerce-form-referral-toggle">
-        <?php wc_print_notice( apply_filters( 'woocommerce_checkout_coupon_message', esc_html__( 'Registered as a WA 9 member?', 'woocommerce' ) . ' <a href="#" class="showreferral">' . esc_html__( 'Click here to enter your referral code', 'woocommerce' ) . '</a>' ), 'notice' ); ?>
+    <!--<div class="woocommerce-form-referral-toggle">
+         <?php wc_print_notice( apply_filters( 'woocommerce_checkout_coupon_message', esc_html__( 'Registered as a WA 9 member?', 'woocommerce' ) . ' <a href="#" class="showreferral">' . esc_html__( 'Click here to enter your referral code', 'woocommerce' ) . '</a>' ), 'notice' ); ?>
     </div>
 
-    <form class="checkout_referral woocommerce-form-referral" method="post" style="display:none; margin-bottom: 20px;">
-        <p><?php esc_html_e('If you have a referral code, please apply it below.', 'woocommerce'); ?></p>
+    <form class="checkout_referral woocommerce-form-referral" method="post">
+        <p style="display:none;"><?php esc_html_e('If you have a referral code, please apply it below.', 'woocommerce'); ?></p>
 
         <p class="form-row form-row-first">
             <label for="referral_code" class="screen-reader-text"><?php esc_html_e('Referral code:', 'woocommerce'); ?></label>
@@ -126,7 +166,7 @@ function add_referral_code_toggle_and_form() {
         </p>
 
         <div class="clear"></div>
-    </form>
+    </form>-->
     <?php
 }
 add_action('woocommerce_before_checkout_form', 'add_referral_code_toggle_and_form');
@@ -185,6 +225,56 @@ function display_applied_referral_code() {
     }
 }
 
+add_action('woocommerce_review_order_before_order_total', 'code_form');
+function code_form(){
+    $referral_code = WC()->session->get('referral_code');
+    $current_url = is_cart() ? wc_get_cart_url() : (is_checkout() ? wc_get_checkout_url() : home_url());
+    if ($referral_code) {
+        echo '<tr class="referral-code">
+                <th>' . __('Referral Code Applied', 'woocommerce') . ': ' . esc_html($referral_code) . '</th>
+                <td><a href="' . esc_url(add_query_arg(['remove_referral' => '1', 'redirect_to' => urlencode($current_url)], $current_url)) . '" class="remove-referral">' . __('[Remove]', 'woocommerce') . '</a></td>
+              </tr>';
+    }
+    ?>
+	<tr class="custom-form-row">
+        <td colspan=2>
+            <form id="checkout_coupon_table" method="post">
+                <input type="text" name="coupon_code_table" class="input-text" placeholder="<?php esc_attr_e('Coupon code', 'woocommerce'); ?>" id="coupon_code_table" value="" />
+                <button type="submit" class="button" name="apply_coupon_table" id="apply_coupon_table" value="<?php esc_attr_e('Apply Coupon', 'woocommerce'); ?>"><?php esc_html_e('Apply Coupon', 'woocommerce'); ?></button>
+            </form>
+        </td>
+    </tr>
+    <?php
+    if (!$referral_code) {
+    ?>
+	<tr class="custom-form-row">
+        <td colspan=2>
+            <form id="checkout_referral_table" method="post">
+                <input type="text" name="referral_code_table" class="input-text" placeholder="<?php esc_attr_e('Referral code', 'woocommerce'); ?>" id="referral_code_table" value="" />
+                <button type="submit" class="button" name="apply_referral_table" id="apply_referral_table" value="<?php esc_attr_e('Apply Referral', 'woocommerce'); ?>"><?php esc_html_e('Apply referral', 'woocommerce'); ?></button>
+            </form>
+        </td>
+    </tr>
+    <?php
+    }
+}
+
+add_action('wp', 'handle_custom_coupon_form_submission');
+function handle_custom_coupon_form_submission() {
+    if (isset($_POST['apply_coupon_table']) && isset($_POST['coupon_code_table'])) {
+        $coupon_code = sanitize_text_field($_POST['coupon_code_table']);
+
+        if (!empty($coupon_code)) {
+            WC()->cart->apply_coupon($coupon_code);
+        } else {
+            wc_add_notice(__('Please enter a coupon code.', 'woocommerce'), 'error');
+        }
+
+        wp_redirect(wc_get_checkout_url());
+        exit;
+    }
+}
+
 add_action('wp_loaded', 'remove_referral_code');
 function remove_referral_code() {
     if (isset($_GET['remove_referral']) && $_GET['remove_referral'] == '1') {
@@ -229,15 +319,15 @@ function display_member_price($price, $product) {
 }
 
 // Save referral code to the session when applied
-add_action('woocommerce_applied_coupon', 'save_referral_code_to_session');
-function save_referral_code_to_session($coupon_code) {
-    $coupon = new WC_Coupon($coupon_code);
+// add_action('woocommerce_applied_coupon', 'save_referral_code_to_session');
+// function save_referral_code_to_session($coupon_code) {
+//     $coupon = new WC_Coupon($coupon_code);
     
-    // Check if the coupon is a referral code
-    if (get_post_meta($coupon->get_id(), '_is_referral_code', true)) {
-        WC()->session->set('referral_code', $coupon_code);
-    }
-}
+//     // Check if the coupon is a referral code
+//     if (get_post_meta($coupon->get_id(), '_is_referral_code', true)) {
+//         WC()->session->set('referral_code', $coupon_code);
+//     }
+// }
 
 // Save referral code to order meta
 add_action('woocommerce_checkout_update_order_meta', 'save_referral_code_to_order_meta');
@@ -271,7 +361,6 @@ function display_referral_code_on_thankyou_page($order_id) {
 	WC()->session->__unset('referral_code');
 }
 
-add_action('woocommerce_review_order_before_order_total', 'display_applied_referral_code');
 
 function add_gtag_conversion_event() {
     if (is_wc_endpoint_url('order-received')) {
